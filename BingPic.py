@@ -1,30 +1,62 @@
-# -*- coding: utf-8 -*-
-
 import os
-import urllib.request
-import datetime
+import win32gui
 
-COLLECTION_DIR = 'D://bingPic/'
+import requests
+import json
 
-def collect_bing_picure():
-   pic_url = None
-   f = urllib.request.urlopen('http://cn.bing.com/')
-   page_source = str(f.read())
+import win32con
 
-   if page_source.find('s.cn.bing.net') >= 1:
-      pre_url = page_source.split('s.cn.bing.net')[1]
-      clean_url = pre_url.split('.jpg')[0].replace('\\', '')
-      pic_url = 'http://s.cn.bing.net%s.jpg' % clean_url
-      print(pic_url)
+api_link = 'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1'
+bing_host = 'https://www.bing.com'
+file_dir = 'E:/BingPic/image/'
 
-   if pic_url is not None:
-      nowa_time = datetime.datetime.now().strftime('%Y%m%d')
 
-      if not os.path.exists(COLLECTION_DIR):
-         os.mkdir(COLLECTION_DIR)
-      urllib.request.urlretrieve(pic_url, COLLECTION_DIR + nowa_time + '.jpg')
+def open_url(url):
+    response = requests.get(url)
+    return response.content
 
-      print('download successful')
+
+def get_link(url):
+    data = open_url(url)
+    if data:
+        json_data = json.loads(data.decode('utf-8'))
+        images = json_data['images']
+        res = {}
+        for image in images:
+            res[image['startdate']] = bing_host +image['url']
+        return res
+
+
+def check_path():
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+
+
+def save_image(url, file_path):
+    content = open_url(url)
+    with open(file_path, 'wb') as f:
+        f.write(content)
+    return file_path
+
+
+def set_wallpaper(file_path):
+    print('正在设置为壁纸...')
+    win32gui.SystemParametersInfo(win32con.SPI_SETDESKWALLPAPER, file_path, 1 + 2)
+    print('壁纸设置成功.')
+
+
+def notify():
+    pass
+
+
+def main():
+    check_path()
+    res = get_link(api_link)
+    if res:
+        for k, v in res.items():
+            file_path = save_image(v, file_dir + k + v[v.rfind("."):])
+            set_wallpaper(file_path)
+
 
 if __name__ == '__main__':
-   collect_bing_picure()
+    main()
